@@ -107,3 +107,41 @@ with open('asv_table.txt', 'w') as table_out:
 ```
 
 ### 4.2 Reference database
+
+For assigning a taxonomic ID to each ASV, we will generate a highly curated reference database for the ND2 gene using CRABS *v* 0.1.8 [(Jeunen et al., 2022)](https://onlinelibrary.wiley.com/doi/full/10.1111/1755-0998.13741). First, download the ND2 reference sequences from NCBI.
+
+```{code-block} bash
+crabs db_download -s ncbi -db nucleotide -q 'ND2[All Fields] AND (NADH2[All Fields] AND animals[filter])' -o ncbi_ND2.fasta -e gjeunen@gmail.com
+```
+
+Additionally, the NCBI taxonomy information needs to be downloaded to complete the reference database creation with CRABS.
+
+```{code-block} bash
+crabs db_download -s taxonomy
+```
+
+Second, extract amplicons from the downloaded reference sequences using an *in silico* PCR analysis.
+
+```{code-block} bash
+crabs insilico_pcr -i ncbi_ND2.fasta -o ncbi_ND2_insilico.fasta -f CAACMGCCGCAGCAATAATCCT -r ATTTTACGCAGTTGGGTTTGATTAAGCCC
+```
+
+Third, assign a taxonomic lineage to each sequence.
+
+```{code-block} bash
+crabs assign_tax -i ncbi_ND2_insilico.fasta -o ncbi_ND2_insilico_tax.tsv -a nucl_gb.accession2taxid -t nodes.dmp -n names.dmp -w yes
+```
+
+Fourth, dereplicate the reference database to reduce the file size and remove reduntant sequences.
+
+```{code-block} bash
+crabs dereplicate -i ncbi_ND2_insilico_tax.tsv -o ncbi_ND2_insilico_tax_derep.tsv -m uniq_species
+```
+
+Fifth, use various filtering parameters to retain only high quality references in the local database.
+
+```{code-block} bash
+crabs seq_cleanup -i ncbi_ND2_insilico_tax_derep.tsv -o ncbi_ND2_insilico_tax_derep_clean.tsv -e yes -s yes -n 0
+```
+
+### 4.3 Taxonomic assignment
