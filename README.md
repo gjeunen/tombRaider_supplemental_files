@@ -260,6 +260,346 @@ The mock community information can be found in the Supplementary Information fil
 
 ### 2.5 Statistical analysis
 
+Below is the R code used for all statistical analyses and the creation of Figure 3 in the manuscript.
+
+```{code-block} R
+###################################
+## 0. set up working environment ##
+###################################
+## set working directory
+## load libraries
+required.libraries <- c("dada2", "DECIPHER", "purrr", "ape", "picante", 
+                        "pez", "phytools",
+                        "vegan", "adephylo", 
+                        "phylobase", "geiger", 
+                        "mvMORPH", "OUwie", 
+                        "hisse", "BAMMtools",
+                        "phylosignal", "Biostrings",
+                        "devtools","ggplot2", 
+                        "kableExtra", "betapart", "gridExtra",
+                        "reshape2", "ggtree", "car", "egg", "tidyverse", "dplyr",
+                        "hrbrthemes", "readxl", "ggrepel", "pracma", "scales", "ggpubr", "lsmeans", "multcomp",
+                        "phyloseq", "gplots", "tidytree", "ggridges")
+lapply(required.libraries, require, character.only = TRUE)
+
+############################
+## 1. GENERATE PHYLO TREE ##
+############################
+# From the bioinformatic analysis, we ended up with 6 ASV tables from the different filtering techniques,
+# including the (i) raw table, (ii) taxon merge table, (iii) taxon independent co-occurrence table, 
+# (iv) taxon dependent co-occurrence table, (v) abundance table, and (vi) mock community table.
+# We also ended up with 2 ASV fasta files, including one with the sequences from the metabarcoding data set and
+# another one where we supplemented the missed species from the mock community 
+# (sequences obtained from BOLD, in silico PCR analysis to retain the amplicon).
+# To generate the phylogenetic tree, we will use the ASV fasta file with the supplemented sequences from the missed mock community species.
+
+# First, we need to align the sequences. We will do this in R using the DECIPHER package.
+# a) load sequences into R using Biostrings and format appropriately using dada2
+sequenceTable <- readDNAStringSet('../phyloTree2/zotusWithMissing.fasta')
+seqs <- getSequences(sequenceTable)
+# b) align sequences using DECIPHER
+alignment <- AlignSeqs(DNAStringSet(seqs), anchor = NA)
+# c) visualise alignment to check it worked properly
+alignment[[1]]
+# d) export alignment to nexus format using ape
+write.nexus.data(alignment, '../phyloTree2/zotusWithMissingAlign.nex')
+
+# Second, we need to generate the phylogenetic tree, which we will do in BEAST2.
+# The next steps are not conducted in R.
+# a) generate the .xml file using BEAUTi 2. 
+#       a.1) Import nexus alignment
+#       a.2) Set substitution model to HKY
+#       a.3) Set starting tree to Cluster Tree and cluster type to UPGMA
+#       a.4) Set Chain length to 10^8 and log every 10,000 trees
+#       a.5) Keep remaining settings on default and export .xml file
+# b) run BEAST 2 to generate phylogenetic trees.
+# c) after BEAST 2 completes, check log file in Tracer.
+# d) find best supported tree using TreeAnnotator and export to .tree file.
+# e) visualise tree quality using FigTree.
+
+# We have now created the phylogenetic tree for this data set.
+
+###########################
+## 2. COMBINE OTU TABLES ##
+###########################
+# After generating the phylogenetic tree, we need to combine all 6 ASV tables, so that we can generate the figures
+# and compare the different filtering approaches.
+# First, we need to read the data into R
+rawTable <- read.table('../zotuTable.txt', header = TRUE, row.names = 1, sep = '\t', check.names = FALSE, comment.char = '')
+mergeTable <- read.table('../tombRaider_taxon_merging/zotuTableNew.txt', header = TRUE, row.names = 1, sep = '\t', check.names = FALSE, comment.char = '')
+independentTable <- read.table('../tombRaider_taxon_independent/zotutableTaxonIndependent.txt', header = TRUE, row.names = 1, sep = '\t', check.names = FALSE, comment.char = '')
+dependentTable <- read.table('../tombRaider_taxon_dependent_BOLD/zotuTableNew.txt', header = TRUE, row.names = 1, sep = '\t', check.names = FALSE, comment.char = '')
+abundanceTable <- read.table('../zotuTableAbundance.txt', header = TRUE, row.names = 1, sep = '\t', check.names = FALSE, comment.char = '')
+mockTable<- read.table('../zotuTableMock.txt', header = TRUE, row.names = 1, sep = '\t', check.names = FALSE, comment.char = '')
+
+# Second, we will change header names for ease
+rawNames <- c("raw_CL2", "raw_CL3", "raw_CL1", "raw_BA2", "raw_BA3", "raw_BA1", "raw_BL1", "raw_BL3", "raw_BL2")
+colnames(rawTable) <- rawNames
+mergeNames <- c("merge_CL2", "merge_CL3", "merge_CL1", "merge_BA2", "merge_BA3", "merge_BA1", "merge_BL1", "merge_BL3", "merge_BL2")
+colnames(mergeTable) <- mergeNames
+independentNames <- c("independent_CL2", "independent_CL3", "independent_CL1", "independent_BA2", "independent_BA3", "independent_BA1", "independent_BL1", "independent_BL3", "independent_BL2")
+colnames(independentTable) <- independentNames
+dependentNames <- c("dependent_CL2", "dependent_CL3", "dependent_CL1", "dependent_BA2", "dependent_BA3", "dependent_BA1", "dependent_BL1", "dependent_BL3", "dependent_BL2")
+colnames(dependentTable) <- dependentNames
+abundanceNames <- c("abundance_CL2", "abundance_CL3", "abundance_CL1", "abundance_BA2", "abundance_BA3", "abundance_BA1", "abundance_BL1", "abundance_BL3", "abundance_BL2")
+colnames(abundanceTable) <- abundanceNames
+mockNames <- c("mock_CL2", "mock_CL3", "mock_CL1", "mock_BA2", "mock_BA3", "mock_BA1", "mock_BL1", "mock_BL3", "mock_BL2")
+colnames(mockTable) <- mockNames
+
+# Third, convert row names to a column in each dataframe
+df_list <- list(rawTable, abundanceTable, independentTable, mergeTable, dependentTable, mockTable)
+df_list <- lapply(df_list, function(df) {
+  df$category <- rownames(df)
+  return(df)
+})
+
+# Fourth, perform a full join on the new column to combine all dataframes using tidyverse
+merged_df <- df_list %>%
+  reduce(full_join, by = 'category')
+
+# Fifth, set row names back, remove the extra column, set NA to 0, and transform data to pa
+rownames(merged_df) <- merged_df$category
+merged_df <- select(merged_df, -category)
+merged_df[is.na(merged_df)] <- 0
+merged_df[merged_df > 1] <- 1
+
+# Sixth, write new dataframe to txt file
+write.table(merged_df, file = 'zotuTableCombinedAll.txt', sep = '\t', row.names = TRUE)
+
+#############################
+## 3. FIGURE 1A PHYLO TREE ##
+#############################
+# Now that we have all files generated, we can start creating the figures. 
+# The first subplot is the phylogenetic tree.
+# First, read the data into R.
+phyloTreeLongTable <- read.table('zotuTableCombinedAll.txt', header = TRUE, row.names = 1, sep = '\t', check.names = FALSE, comment.char = '')
+phyloTree <- read.nexus('../phyloTree2/zotusWithMissing-tree.tree')
+
+# Before creating the tree figure, we need to reformat the table.
+# We need to group the samples by filter method, set 0 to NA, and change detection to header name for the visualization.
+# Second, reformat phyloTreeLongTable according to figure specifications
+column_names <- unique(gsub("^(.*?)_.*", "\\1", names(phyloTreeLongTable)))
+phyloTreeShortTable <- data.frame(matrix(NA, nrow = nrow(phyloTreeLongTable), ncol = length(column_names)))
+names(phyloTreeShortTable) <- column_names
+for (col_name in column_names) {
+  cols_to_combine <- grep(paste0("^", col_name, "_"), names(phyloTreeLongTable), value = TRUE)
+  phyloTreeShortTable[[col_name]] <- rowSums(phyloTreeLongTable[cols_to_combine])
+}
+rownames(phyloTreeShortTable) <- rownames(phyloTreeLongTable)
+phyloTreeShortTable[phyloTreeShortTable == 0] <- NA
+for (col in column_names) {
+  phyloTreeShortTable[[col]] <- ifelse(phyloTreeShortTable[[col]] > 0, col, phyloTreeShortTable[[col]])
+}
+
+# Third, reorder columns
+phyloTreeShortTable <- phyloTreeShortTable %>%
+  select(raw, abundance, independent, merge, dependent, mock, everything())
+
+# Fourth, set colours for the figure
+sample_colors <- c("raw" = "#c4d8e1", "merge" = "#BFB8DA", "independent" = "#4e6c82", "dependent" = "#f2d379", "abundance" = "#90adbf", "mock" = "grey30")
+
+# Fifth, generate phylogenetic tree figure
+circularTree <-ggtree(phyloTree, layout = "fan", open.angle = 20, size = 0.05, color = 'grey30')
+circularTree <- rotate_tree(circularTree, 280)
+phyloTreePlot <- gheatmap(circularTree, phyloTreeShortTable, width = 0.5, offset = -0.018, color = NA, hjust = 0.5, font.size = 3, custom_column_labels = c('raw', 'abundance', 'independent', 'merge', 'dependent', 'mock')) + 
+  scale_fill_manual(values = sample_colors, na.value = NA) + 
+  theme(legend.position = 'none') 
+phyloTreePlot
+
+#################################
+## 4. FIGURE 1B COUNT BAR PLOT ##
+#################################
+# For this figure, we will use a file generated in excel, whereby we counted the number of instances for each type, including
+# expected = sequences in the mock community,
+# missing = sequences in the mock community but not detected,
+# contaminant = sequences that are not in the mock community but match 100% to another species,
+# artefact = sequences not in the mock community and not matching 100% to another species
+# First, read the data into R
+countTable <- read.table('count_bar_plot.txt', header = TRUE, row.names = 1, sep = '\t', check.names = FALSE, comment.char = '')
+
+# Second, reshape data for plotting
+countTable$category <- rownames(countTable)
+countTable <- tidyr::pivot_longer(countTable, cols = -category, names_to = "Variable", values_to = "Value")
+
+# Third, reorder variables for plotting
+countTable$Variable <- factor(countTable$Variable, levels = c("raw", "abundance", "independent", "merge", "dependent", "mock"))
+countTable$category <- factor(countTable$category, levels = c("Artefact", "Contaminant", "Missing", "Expected"))
+
+# Fourth, set colours for plotting
+type_colours <- c("Artefact" = "#ce7c7d", "Contaminant" = "#e7dfbb", "Missing" = "white", "Expected" = "grey40")
+
+# Fifth, plot using ggplot2
+barPlot <- ggplot(countTable, aes(x = Value, y = Variable, fill = category)) +
+  geom_bar(stat = "identity") +
+  labs(title = element_blank()) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title = element_blank(),
+        legend.position = 'none') +
+  scale_fill_manual(values = type_colours, na.value = NA) + 
+  scale_x_continuous(breaks = seq(0, 900, by = 450)) +
+  expand_limits(x = c(0, 900))
+barPlot
+
+#################################
+## 5. FIGURE 1C RIDGELINE PLOT ##
+#################################
+# For the ridgeline plot, we will again make use of a file generated in excel, whereby we listed the similarity score
+# for each filtering method and split it up in kept sequences and filtered out sequences.
+# First, read the data into R.
+violinTable <- read.table('violin_plot_data.txt', header = TRUE, row.names = 1, sep = '\t', check.names = FALSE, comment.char = '')
+violinMetadata <- read.table('violin_plot_metadata.txt', header = TRUE, row.names = 1, sep = '\t', check.names = FALSE, comment.char = '')
+
+# Second, change 0 to NA
+violinTable[violinTable == 0] <- NA
+
+# Third, reshape to long format
+violinTableLong <- gather(violinTable, key = "variable", value = "value")
+
+# Fourth, join table with metadata
+violinTableLong <- merge(violinTableLong, violinMetadata, by.x = "variable", by.y = "row.names")
+
+# Fifth, reorder variables for plotting
+violinTableLong$group <- factor(violinTableLong$group, levels = c("raw", "abundance", "independent", "merge", "dependent", "mock"))
+
+# Sixth, plot using ggplot2
+ridgePlot <- ggplot(violinTableLong, aes(x = value, y = group, fill = type, point_color = type, color = type)) +
+  geom_density_ridges(
+    jittered_points = TRUE, scale = 0.95, rel_min_height = 0.01, point_shape = '|', point_size = 3, size = 0.25, position = position_points_jitter(height = 0)
+  ) +
+  scale_x_continuous(expand = c(0, 0), name = "percent identity (%)") +
+  scale_fill_manual(values = c("#e7dfbb50", "#69b3a250"), labels = c("discarded", "included")) +
+  scale_color_manual(values = c("#e7dfbb", "#69b3a2"), guide = "none") +
+  scale_discrete_manual("point_color", values = c("#e7dfbb", "#69b3a2"), guide = "none") +
+  coord_cartesian(clip = "off") +
+  guides(fill = guide_legend(
+    override.aes = list(
+      fill = c("#e7dfbbA0", "#69b3a2A0"),
+      color = NA, point_color = NA))
+  ) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"), axis.title = element_blank(), legend.position = 'none',
+        axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.line.y = element_blank()) +
+  scale_x_continuous(breaks = seq(70, 100, by = 15)) +
+  expand_limits(x = c(70, 100))
+ridgePlot
+
+###############################################
+## 6. FIGURE 1D - 1F ALPHA DIVERSITY BOXPLOT ##
+###############################################
+# For the alpha diversity analysis, we will plot species richness and Faith's PD.
+alphaTable <- read.table('zotuTableCombinedAll.txt', header = TRUE, row.names = 1, sep = '\t', check.names = FALSE, comment.char = '')
+phyloTree <- read.nexus("../phyloTree2/zotusWithMissing-tree.tree")
+alphaMetaTable <- read.table('sampleInfo.txt', header = TRUE, sep = '\t', check.names = FALSE, comment.char = '')
+
+# First, prepare data for analysis
+is.binary(phyloTree)
+is.ultrametric(phyloTree)
+alphaTable.T <- t(alphaTable)
+all(sort(phyloTree$tip.label) == sort(colnames(alphaTable.T)))
+all(phyloTree$tip.label == colnames(alphaTable.T))
+phyloTree.clean <- match.phylo.comm(phy = phyloTree, comm = alphaTable.T)$phy
+alphaTable.clean <- match.phylo.comm(phy = phyloTree, comm = alphaTable.T)$comm
+all(phyloTree.clean$tip.label == colnames(alphaTable.clean))
+plot(phyloTree.clean, cex = 0.4)
+
+# Second, calculate Faith's PD and species richness (SR)
+alpha.PD <- pd(samp = alphaTable.clean, tree = phyloTree.clean, include.root = FALSE)
+cor.test(alpha.PD$PD, alpha.PD$SR)
+plot(alpha.PD$PD, alpha.PD$SR, xlab = 'Phylogenetic Diversity', ylab = 'Species Richness', pch = 16)
+
+# Third, combine metadata with Faith's PD and SR
+alpha.PD$ID <- rownames(alpha.PD)
+alpha.PD.meta <- merge(alpha.PD, alphaMetaTable, by = 'ID')
+
+# Fourth, plot boxplot for PD and SR
+alpha.PD.meta$type <- factor(alpha.PD.meta$type, levels = c("raw", "abundance", "independent", "merge", "dependent", "mock"))
+sample_colors <- c("raw" = "#c4d8e1", "merge" = "#BFB8DA", "independent" = "#4e6c82", "dependent" = "#f2d379", "abundance" = "#90adbf", "mock" = "grey30")
+boxplot.PD <- ggplot(alpha.PD.meta, aes(x = type, y = PD, fill = type)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.8) +
+  geom_point(shape = 1, position = position_jitterdodge(jitter.width = 0.1), size = 2, colour = 'black') +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.position = 'none', axis.title.x = element_blank()) +
+  scale_fill_manual(values = sample_colors) +
+  scale_y_continuous(breaks = seq(15, 45, by = 15)) +
+  expand_limits(y = c(15, 45))
+boxplot.PD
+
+boxplot.SR <- ggplot(alpha.PD.meta, aes(x = SR, y = type, fill = type)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.8) +
+  geom_point(shape = 1, position = position_jitterdodge(jitter.width = 0.1), size = 2, colour = 'black') +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), axis.line = element_line(colour = "black"), legend.position = 'none', axis.title.x = element_blank(),
+        axis.title.y = element_blank(), axis.text.y = element_blank(), axis.ticks.y = element_blank(), axis.line.y = element_blank()) +
+  scale_fill_manual(values = sample_colors) +
+  scale_x_continuous(breaks = seq(100, 700, by = 300)) +
+  expand_limits(x = c(100, 700))
+boxplot.SR
+
+# Fifth, run ANOVA for PD and SR
+anova.PD <- aov(PD ~ as.factor(type), data = alpha.PD.meta)
+summary(anova.PD)
+TukeyHSD(anova.PD)
+
+anova.SR <- aov(SR ~ as.factor(type), data = alpha.PD.meta)
+summary(anova.SR)
+TukeyHSD(anova.SR)
+
+# Sixth, check assumptions of ANOVA
+# assumption 1: normal distribution of residuals
+hist(anova.PD$residuals, main = 'Histogram of PD residuals', xlab = 'Residuals')
+hist(anova.SR$residuals, main = 'Histogram of SR residuals', xlab = 'Residuals')
+# assumption 2: homogeneity of variance
+leveneTest(PD ~ as.factor(type), data = alpha.PD.meta)
+leveneTest(SR ~ as.factor(type), data = alpha.PD.meta)
+
+# Seventh, significant levene's test, so need to run Welch's ANOVA instead
+oneway.test(PD ~ as.factor(type), data = alpha.PD.meta, var.equal = FALSE)
+oneway.test(SR ~ as.factor(type), data = alpha.PD.meta, var.equal = FALSE)
+modelPD <- lm(PD ~ as.factor(type), data= alpha.PD.meta)
+modelSR <- lm(SR ~ as.factor(type), data= alpha.PD.meta)
+leastsquarePD <- lsmeans(modelPD, pairwise ~ type, adjust = 'tukey')
+cld(leastsquarePD, alpha = 0.05, Letters = letters, adjust = 'tukey')
+leastsquareSR <- lsmeans(modelSR, pairwise ~ type, adjust = 'tukey')
+cld(leastsquareSR, alpha = 0.05, Letters = letters, adjust = 'tukey')
+
+#################################################
+## 7. FIGURE 1E - 1G BETA DIVERSITY ORDINATION ##
+#################################################
+# For the beta diversity analysis, we will both analyse Taxonomic Diversity (TD) and Phylogenetic Diversity (PD)
+# First, read the data into R
+betaTable <- as.data.frame(t(read.table('zotuTableCombinedAll.txt', header = TRUE, row.names = 1, sep = '\t', check.names = FALSE, comment.char = '')))
+phyloTree <- read.nexus("../phyloTree2/zotusWithMissing-tree.tree")
+betaMetaTable <- read.table('sampleInfo.txt', header = TRUE, sep = '\t', check.names = FALSE, comment.char = '')
+
+# Second, import data into phyloseq
+OTU <- otu_table(betaTable, taxa_are_rows = FALSE)
+betaMetaTable$type <- as.factor(betaMetaTable$type)
+META <- sample_data(betaMetaTable)
+rownames(META) <- META$ID
+physeq <- merge_phyloseq(OTU, META, phyloTree)
+
+# Third, generate ordination plot TD
+sample_colors <- c("raw" = "#c4d8e1", "merge" = "#BFB8DA", "independent" = "#4e6c82", "dependent" = "#f2d379", "abundance" = "#90adbf", "mock" = "grey30")
+TD.ord.PCoA <- ordinate(physeq, method = "PCoA", distance = 'jaccard', try = 100, trymax = 1000, k = 2)
+TD.ord.PCoA.plot <- plot_ordination(physeq, TD.ord.PCoA, type = 'samples', color = 'type', shape = 'type') +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), panel.border = element_rect(colour = 'black', fill = NA), legend.position = 'none')  +
+  geom_point(size = 5) +
+  scale_color_manual(values = sample_colors)
+TD.ord.PCoA.plot
+
+# Fourth, generate ordination plot PD
+PD.ord.PCoA <- ordinate(physeq, method = 'PCoA', distance = 'unifrac', weighted = FALSE)
+PD.ord.PCoA.plot <- plot_ordination(physeq, PD.ord.PCoA, type = 'samples', color = 'type', shape = 'type') +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        panel.background = element_blank(), panel.border = element_rect(colour = 'black', fill = NA), legend.position = 'none')  +
+  geom_point(size = 5) +
+  scale_color_manual(values = sample_colors)
+PD.ord.PCoA.plot
+
+ggarrange(phyloTreePlot, ggarrange(ggarrange(barPlot, ridgePlot, ncol = 2, labels = c('b', 'c')), ggarrange(boxplot.PD, PD.ord.PCoA.plot, ncol = 2, labels = c('d', 'e')), nrow = 2, heights = c(1, 1.5)), ncol = 2, labels = c('a', ''), widths = c(1, 2))
+```
+
 ## 3. Supplement 3: air eDNA data analysis
 
 ## 4. Supplement 4: salmon haplotype data analysis
