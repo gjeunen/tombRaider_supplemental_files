@@ -152,6 +152,73 @@ vsearch --usearch_global combined.fasta --db asv.fasta --strand plus --id 0.97 -
 
 ### 2.3 Taxonomic assignment
 
+Since the amplicons are within the COI gene region, we can use BOLDigger [Buchner and Leese, 2020](https://mbmg.pensoft.net/article/53535/) to assign a taxonomic ID to each ASV.
+
+```{code-block} bash
+mkdir BOLD
+boldigger-cline ie_coi username password asv.fasta BOLD/
+```
+
+This will generate a file named "BOLDResults_asv_part_1.txt". The following python script can be used to reformat this file into a standard taxonomy output file, which will be used during subsequent analyses.
+
+```{code-block} python
+#! /usr/bin/env python3
+
+## import modules
+import collections
+
+boldDict = collections.defaultdict(dict)
+speciesListDict = collections.defaultdict(list)
+
+seqID = 0
+with open('BOLDResults_zotus2line_part_1.txt', 'r') as boldinfile:
+    next(boldinfile)
+    for line in boldinfile:
+        line = line.rstrip('\n')
+        lastSeqID = seqID
+        seqID = line.split('\t')[0].lstrip('>')
+        if seqID == '':
+            seqID = lastSeqID
+        taxID = ", ".join([item for item in line.split('\t')[1:8] if item != ''])
+        similarity = line.split('\t')[8]
+        if similarity != '':
+            similarity = float(similarity)
+        status = line.split('\t')[9]
+        processID = line.split('\t')[10]
+        if seqID not in boldDict:
+            boldDict[seqID]['taxInfo'] = taxID
+            boldDict[seqID]['score'] = similarity
+            boldDict[seqID]['status'] = status
+            boldDict[seqID]['processID'] = processID
+        else:
+            if boldDict[seqID]['score'] <= similarity and boldDict[seqID]['taxInfo'] != taxID and taxID not in speciesListDict[seqID]:
+                speciesListDict[seqID].append(taxID)
+
+zotuList = []
+with open('asv_table.txt', 'r') as zotufile:
+    for line in zotufile:
+        seqID = line.split('\t')[0]
+        if seqID != 'ID':
+            zotuList.append(seqID)
+
+boldFinalDict = collections.defaultdict(dict)
+for item in zotuList:
+    if item not in boldDict:
+        boldFinalDict[item]['taxInfo'] = 'NA'
+        boldFinalDict[item]['score'] = 'NA'
+        boldFinalDict[item]['status'] = 'NA'
+        boldFinalDict[item]['processID'] = 'NA'
+    else:
+        boldFinalDict[item] = boldDict[item]
+
+with open('boldFormattedNew.txt', 'w') as outfile:
+    outfile.write(f'#OTU ID\ttaxInfo\tsimilarity\tstatus\tprocessID\totherID\n')
+    for item in boldFinalDict:
+        outfile.write(f'{item}\t{boldFinalDict[item]["taxInfo"]}\t{boldFinalDict[item]["score"]}\t{boldFinalDict[item]["status"]}\t{boldFinalDict[item]["processID"]}\t{"; ".join(speciesListDict[item])}\n')
+```
+
+### 2.4 *tombRaider*
+
 ## 3. Supplement 3: air eDNA data analysis
 
 ## 4. Supplement 4: salmon haplotype data analysis
