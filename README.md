@@ -219,6 +219,47 @@ with open('boldFormattedNew.txt', 'w') as outfile:
 
 ### 2.4 *tombRaider*
 
+Now that we have generated the three input files needed for *tombRaider*, we can create all the separate ASV tables and ASV sequence files for each data curation method, including:
+
+1. unfiltered (no data curation post denoising): these will be the files we have generated during the bioinformatic analysis
+2. taxon-dependent co-occurrence merging (criteria: taxonomic ID, sequence similarity, co-occurrence pattern)
+3. taxonomic ID merging (criteria: taxonomic ID)
+4. taxon-independent co-occurrence merging (criteria: sequence similarity, co-occurrence pattern; i.e., LULU)
+5. abundance filtering (will be done outside of *tombRaider*)
+6. mock community (files can be downloaded from the Supplementary Information associated with the original publication)
+
+#### 2.4.1 unfiltered
+
+Data files created during bioinformatic analysis.
+
+#### 2.4.2 taxon-dependent co-occurrence merging
+
+```{code-block} bash
+tombRaider --method 'taxon-dependent co-occurrence' --frequency-input zotutable.txt --frequency-output tombRaider_taxon_dependent_BOLD/zotutableNew.txt --sequence-input zotus_mock_community.fasta --sequence-output tombRaider_taxon_dependent_BOLD/zotus_mock_communityNew.fasta --bold-input boldigger/BOLDResults_zotus2line_part_1.txt --bold-output tombRaider_taxon_dependent_BOLD/bold-outputNew.txt --occurrence-type abundance --count 1 --sort 'total read count' --condensed-log tombRaider_taxon_dependent_BOLD/condensedLog.txt --detailed-log tombRaider_taxon_dependent_BOLD/detailedLog.txt --bold-format complete --similarity 88
+```
+
+#### 2.4.3 taxonomic ID merging
+
+```{code-block} bash
+tombRaider --method 'taxon-dependent merging' --frequency-input zotutable.txt --frequency-output tombRaider_taxon_merging/zotutableNew.txt --sequence-input zotus_mock_community.fasta --sequence-output tombRaider_taxon_merging/zotus_mock_communityNew.fasta --bold-input boldigger/BOLDResults_zotus2line_part_1.txt --bold-output tombRaider_taxon_merging/bold-outputNew.txt --occurrence-type abundance --count 0 --sort 'total read count' --condensed-log tombRaider_taxon_merging/condensedLog.txt --detailed-log tombRaider_taxon_merging/detailedLog.txt --bold-format complete
+```
+
+#### 2.4.4 taxon-independent co-occurrence merging
+
+```{code-block} bash
+tombRaider --method 'taxon-independent co-occurrence' --frequency-input zotutable.txt --frequency-output tombRaider_taxon_independent_BOLD/zotutableNew.txt --sequence-input zotus_mock_community.fasta --sequence-output tombRaider_taxon_independent_BOLD/zotus_mock_communityNew.fasta --bold-input boldigger/BOLDResults_zotus2line_part_1.txt --bold-output tombRaider_taxon_independent_BOLD/bold-outputNew.txt --occurrence-type abundance --count 1 --sort 'total read count' --condensed-log tombRaider_taxon_independent_BOLD/condensedLog.txt --detailed-log tombRaider_taxon_independent_BOLD/detailedLog.txt --bold-format complete --similarity 84
+```
+
+#### 2.4.5 abundance filtering
+
+Abundance filtering is currently not incorporated in *tombRaider*, as many different approaches exist. Hence, we will create these files in excel. Open the ASV table and set reads to 0 if it does not contain at least 0.01% of the total reads within the sample. Finally, remove all ASVs that are dropped and update the ASV sequence file accordingly.
+
+#### 2.4.6 mock community
+
+The mock community information can be found in the Supplementary Information files associated with the original publication (file name: "men13008-sup-0009-TableS1.xlsx").
+
+### 2.5 Statistical analysis
+
 ## 3. Supplement 3: air eDNA data analysis
 
 ## 4. Supplement 4: salmon haplotype data analysis
