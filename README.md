@@ -602,6 +602,41 @@ ggarrange(phyloTreePlot, ggarrange(ggarrange(barPlot, ridgePlot, ncol = 2, label
 
 ## 3. Supplement 3: air eDNA data analysis
 
+### 3.1 Starting files
+
+The raw sequencing data, as well as all metadata needed for the bioinformatic and statistical analysis can be found on the Electronic Research Archive (ERDA) from the University of Copenhagen using this [link](https://erda.ku.dk/archives/83c87a1dc0f0f20f6256143ec71cc493/published-archive.html). The sequencing data consists of four libraries (PCR replicates) per primer set, meaning 8 files (R1 and R2) per primer set and 16 files (2 primer sets) in total. These file names include:
+
+1. KRB-W3XGQ-Riaz1DNAirZoo_S1_L001_R1_001.fastq.gz
+2. KRB-W3XGQ-Riaz1DNAirZoo_S1_L001_R2_001.fastq.gz
+3. KRB-W3XGQ-Riaz2DNAirZoo_S2_L001_R1_001.fastq.gz
+4. KRB-W3XGQ-Riaz2DNAirZoo_S2_L001_R2_001.fastq.gz
+5. KRB-W3XGQ-Riaz3DNAirZoo_S3_L001_R1_001.fastq.gz
+6. KRB-W3XGQ-Riaz3DNAirZoo_S3_L001_R2_001.fastq.gz
+7. KRB-W3XGQ-Riaz4DNAirZoo_S4_L001_R1_001.fastq.gz
+8. KRB-W3XGQ-Riaz4DNAirZoo_S4_L001_R2_001.fastq.gz
+9. KRB-W3XGQ-16Smam1DNAirZoo_S5_L001_R1_001.fastq.gz
+10. KRB-W3XGQ-16Smam1DNAirZoo_S5_L001_R2_001.fastq.gz
+11. KRB-W3XGQ-16Smam2DNAirZoo_S6_L001_R1_001.fastq.gz
+12. KRB-W3XGQ-16Smam2DNAirZoo_S6_L001_R2_001.fastq.gz
+13. KRB-W3XGQ-16Smam3DNAirZoo_S7_L001_R1_001.fastq.gz
+14. KRB-W3XGQ-16Smam3DNAirZoo_S7_L001_R2_001.fastq.gz
+15. KRB-W3XGQ-16Smam4DNAirZoo_S8_L001_R1_001.fastq.gz
+16. KRB-W3XGQ-16Smam4DNAirZoo_S8_L001_R2_001.fastq.gz
+
+(Please note that from the initial download the 16Smam_4 and Riaz_4 files are switched, so rename accordingly the R1 and R2 files.)
+
+The raw sequencing data file names start with KRB-W3XGQ followed by the primer name (16Smam or Riaz),and the Pool number (1, 2, 3, 4). Each file contains all samples of the experiment and data will need to be demultiplexed. To generate the metadata barcode file, we need to combine the following files:
+
+1. 16Smam_Primers.txt (contains forward and reverse primer of the 16Smam primer set)
+2. Riaz_Primers.txt (contains forward and reverse primer of the Riaz primer set)
+3. 16Smam_Tags.txt (links the tag ID to the tag sequence)
+4. Riaz_Tags.txt (links the tag ID to the tag sequence)
+5. 16Smam_PSinfo_DNAir.txt (links the sample ID to the forward and reverse tag IDs, as well as the pool number)
+6. Riaz_PSinfo_DNAir.txt (links the sample ID to the forward and reverse tag IDs, as well as the pool number)
+7. Metadata_ZooSamples.txt (links the sample ID to the sample name and description)
+
+### 3.2 Bioinformatic analysis
+
 ## 4. Supplement 4: salmon haplotype data analysis
 
 ### 4.1 Starting files
