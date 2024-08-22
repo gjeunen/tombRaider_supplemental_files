@@ -6,6 +6,55 @@ This document serves as a comprehensive guide and supplementary information for 
 
 ## 2. Supplement 2: mock community data analysis
 
+### 2.1 Starting files
+
+The raw Illumina sequencing data for this project [(Braukmann et al., 2019)](https://onlinelibrary.wiley.com/doi/full/10.1111/1755-0998.13008) has been deposited on NCBI's Short Read Archive (SRP158933). To download the raw fastq files, we can make use of the `fastq-dump` function from the SRA toolkit. The deposited sequences are split up into the different mock communities, so we will have to execute the `fastq-dump` function multiple times, once for each fastq file to download.
+
+```{code-block} bash
+fastq-dump SRR7759458
+fastq-dump SRR7759449
+fastq-dump SRR7759450
+fastq-dump SRR7759473
+fastq-dump SRR7759476
+fastq-dump SRR7759475
+fastq-dump SRR7759446
+fastq-dump SRR7759443
+fastq-dump SRR7759444
+```
+
+The `fastq-dump` downloads a single fastq file, even though the manuscript mentioned paired-end sequencing. Upon inspection using [FastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/), the forward (R1) and reverse (R2) reads are concatenated. We can use [VSEARCH *v* 2.16.0](https://github.com/torognes/vsearch) to split the file into an R1 and R2 fastq file.
+
+```{code-block} bash
+vsearch --fastq_filter SRR7759458_bulk_abdomen_replicate_1.fastq --fastq_stripright 301 --fastqout SRR7759458_bulk_abdomen_replicate_1_R1.fastq
+vsearch --fastq_filter SRR7759458_bulk_abdomen_replicate_1.fastq --fastq_stripleft 301 --fastqout SRR7759458_bulk_abdomen_replicate_1_R2.fastq
+
+vsearch --fastq_filter SRR7759449_bulk_abdomen_replicate_2.fastq --fastq_stripright 301 --fastqout SRR7759449_bulk_abdomen_replicate_2_R1.fastq
+vsearch --fastq_filter SRR7759449_bulk_abdomen_replicate_2.fastq --fastq_stripleft 301 --fastqout SRR7759449_bulk_abdomen_replicate_2_R2.fastq
+
+vsearch --fastq_filter SRR7759450_bulk_abdomen_replicate_3.fastq --fastq_stripright 301 --fastqout SRR7759450_bulk_abdomen_replicate_3_R1.fastq
+vsearch --fastq_filter SRR7759450_bulk_abdomen_replicate_3.fastq --fastq_stripleft 301 --fastqout SRR7759450_bulk_abdomen_replicate_3_R2.fastq
+
+vsearch --fastq_filter SRR7759473_bulk_leg_replicate_1.fastq --fastq_stripright 301 --fastqout SRR7759473_bulk_leg_replicate_1_R1.fastq
+vsearch --fastq_filter SRR7759473_bulk_leg_replicate_1.fastq --fastq_stripleft 301 --fastqout SRR7759473_bulk_leg_replicate_1_R2.fastq
+
+vsearch --fastq_filter SRR7759476_bulk_leg_replicate_2.fastq --fastq_stripright 301 --fastqout SRR7759476_bulk_leg_replicate_2_R1.fastq
+vsearch --fastq_filter SRR7759476_bulk_leg_replicate_2.fastq --fastq_stripleft 301 --fastqout SRR7759476_bulk_leg_replicate_2_R2.fastq
+
+vsearch --fastq_filter SRR7759475_bulk_leg_replicate_3.fastq --fastq_stripright 301 --fastqout SRR7759475_bulk_leg_replicate_3_R1.fastq
+vsearch --fastq_filter SRR7759475_bulk_leg_replicate_3.fastq --fastq_stripleft 301 --fastqout SRR7759475_bulk_leg_replicate_3_R2.fastq
+
+vsearch --fastq_filter SRR7759446_composite_leg_replicate_1.fastq --fastq_stripright 301 --fastqout SRR7759446_composite_leg_replicate_1_R1.fastq
+vsearch --fastq_filter SRR7759446_composite_leg_replicate_1.fastq --fastq_stripleft 301 --fastqout SRR7759446_composite_leg_replicate_1_R2.fastq
+
+vsearch --fastq_filter SRR7759443_composite_leg_replicate_2.fastq --fastq_stripright 301 --fastqout SRR7759443_composite_leg_replicate_2_R1.fastq
+vsearch --fastq_filter SRR7759443_composite_leg_replicate_2.fastq --fastq_stripleft 301 --fastqout SRR7759443_composite_leg_replicate_2_R2.fastq
+
+vsearch --fastq_filter SRR7759444_composite_leg_replicate_3.fastq --fastq_stripright 301 --fastqout SRR7759444_composite_leg_replicate_3_R1.fastq
+vsearch --fastq_filter SRR7759444_composite_leg_replicate_3.fastq --fastq_stripleft 301 --fastqout SRR7759444_composite_leg_replicate_3_R2.fastq
+````
+
+### 2.2 Bioinformatic analysis
+
 ## 3. Supplement 3: air eDNA data analysis
 
 ## 4. Supplement 4: salmon haplotype data analysis
