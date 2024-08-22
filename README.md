@@ -145,3 +145,17 @@ crabs seq_cleanup -i ncbi_ND2_insilico_tax_derep.tsv -o ncbi_ND2_insilico_tax_de
 ```
 
 ### 4.3 Taxonomic assignment
+
+### 4.4 *tombRaider*
+
+Once the three input files ("asv_table.txt", "asvs.fasta", and "blast_taxonomy.txt") are generated, we will execute *tombRaider* to identify and remove artefacts using the `--use-accession-id` parameter and retain "biologically correct" salmon haplotypes for all three salmonid species simultaneously.
+
+```{code-block} bash
+tombRaider --method 'taxon-dependent co-occurrence' --frequency-input asv_table.txt --taxonomy-input bast_taxonomy.txt --sequence-input asvs.fasta --frequency-output asv_table_new.txt --taxonomy-output blast_taxonomy_new.txt --sequence-output asvs_new.fasta --occurrence-type abundance --detailed-log Supplement_4_tombRaider_log.txt --use-accession-id --similarity 95
+```
+
+The *tombRaider* log file can be found in the supplemental file named "Supplement_4_tombRaider_log.txt".
+
+### 4.5 Phylogenetic tree
+
+### 4.6 Haplotype networks
