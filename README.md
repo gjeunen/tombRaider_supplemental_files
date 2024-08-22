@@ -804,7 +804,7 @@ crabs seq_cleanup -i ncbi_16S_insilico_tax_derep.tsv -o ncbi_16S_insilico_tax_de
 
 ### 3.4 *tombRaider*
 
-Once the three input files ("asv_table.txt", "asvs.fasta", and "blast_taxonomy.txt") are generated, we will execute *tombRaider* to identify and remove artefacts from both data sets.
+Once the three input files ("asv_table.txt", "asvs.fasta", and "blast_taxonomy.txt") are generate for the data created from both primer sets, we will execute *tombRaider* to identify and remove artefacts from both data sets.
 
 ```{code-block} bash
 tombRaider --method 'taxon-dependent co-occurrence' --occurrence-type presence-absence --count 1 --sort 'total read count' --frequency-input riaz_ASVs_table.txt --frequency-output riaz_ASVs_table_tombRaider.txt --sequence-input riaz_ASV.fasta --sequence-output riaz_ASV_tombRaider.fasta --blast-input riaz_ASV.fasta.nt.blastn --blast-output riaz_ASV_tombRaider.fasta.nt.blastn --condensed-log tombRaiderCondensedLogRiaz.txt --detailed-log tombRaiderDetailedLogRiaz.txt --similarity 90
@@ -813,6 +813,51 @@ tombRaider --method 'taxon-dependent co-occurrence' --occurrence-type presence-a
 ```
 
 ### 3.5 Statistical analysis
+
+To determine the presence of relics, i.e., Copenhagen Zoo animals discovered through reanalysis with *tombRaider*, we mapped the taxonomic IDs of the new ASVs to the Copenhagen Zoo animal list (Supplement 5) and subtracted the animals already detected in the original publication. To be conservative and because most Zoo animals will have available reference barcodes, we will only include perfect taxonomic assignments (i.e., 100% query cover and 100% percent identity) for the reanalysis. To generate Figure 4 from the manuscript, we will extract the relics, sort them based on the taxonomic lineage provided within the taxonomic ID file and identify by which primer set the Zoo animal was detected. We can achieve this using the following python script.
+
+```{code-block} python
+# import new species list
+16Smam_tombRaider = []
+riaz_tombRaider = []
+with open('16sm_ASV_tombRaider.fasta.nt.blastn', 'r') as 16Smam_in:
+    for line in 16Smam_in:
+        if line.split('\t')[5] == '100.000' and line.split('\t')[7] == '100':
+            species_id = line.split('\t')[2]
+            16Smam_tombRaider.append(species_id)
+with open('riaz_ASV_tombRaider.fasta.nt.blastn', 'r') as riaz_in:
+    for line in riaz_in:
+        if line.split('\t')[5] == '100.000' and line.split('\t')[7] == '100':
+            species_id = line.split('\t')[2]
+            riaz_tombRaider.append(species_id)
+16Smam_tombRaider_set = set(16Smam_tombRaider)
+riaz_tombRaider_set = set(riaz_tombRaider)
+combined_tombRaider_set = set(16Smam_tombRaider_set + riaz_tombRaider_set)
+
+# import Copenhagen Zoo species list
+zoo_species = []
+with open('copenhagen_zoo_list.txt', 'r') as zoo_in:
+    for line in zoo_in:
+        zoo_species.append(line.rstrip('\n'))
+
+# import Lynggaard species list
+lynggaard_species = []
+with open('lynggaard_list.txt', 'r') as lynggaard_in:
+    for line in lynggaard_in:
+        lynggaard_species.append(line.rstrip('\n'))
+
+# subtract previously detected species with new species
+riaz_potential_relics = [item for item in riaz_tombRaider_set if item not in lynggaard_species]
+16Smam_potential_relics = [item for item in 16Smam_tombRaider_set if item not in lynggaard_species]
+
+# only keep the species that are Copenhagen Zoo animals
+riaz_relics = [item for item in riaz_potential_relics if item in zoo_species]
+16Smam_relics = [item for item in 16Smam_potential_relics if item in zoo_species]
+
+# print out the lists
+print(riaz_relics)
+print(16Smam_relics)
+```
 
 ## 4. Supplement 4: salmon haplotype data analysis
 
