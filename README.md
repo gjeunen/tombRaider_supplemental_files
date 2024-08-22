@@ -51,9 +51,106 @@ vsearch --fastq_filter SRR7759443_composite_leg_replicate_2.fastq --fastq_stripl
 
 vsearch --fastq_filter SRR7759444_composite_leg_replicate_3.fastq --fastq_stripright 301 --fastqout SRR7759444_composite_leg_replicate_3_R1.fastq
 vsearch --fastq_filter SRR7759444_composite_leg_replicate_3.fastq --fastq_stripleft 301 --fastqout SRR7759444_composite_leg_replicate_3_R2.fastq
-````
+```
 
 ### 2.2 Bioinformatic analysis
+
+To start the bioinformatic analysis, we merge the forward and reverse reads to generate the amplicons.
+
+```{code-block} bash
+vsearch --fastq_mergepairs SRR7759458_bulk_abdomen_replicate_1_R1.fastq --reverse SRR7759458_bulk_abdomen_replicate_1_R2.fastq --fastqout SRR7759458_bulk_abdomen_replicate_1_merged.fastq
+
+vsearch --fastq_mergepairs SRR7759449_bulk_abdomen_replicate_2_R1.fastq --reverse SRR7759449_bulk_abdomen_replicate_2_R2.fastq --fastqout SRR7759449_bulk_abdomen_replicate_2_merged.fastq
+
+vsearch --fastq_mergepairs SRR7759450_bulk_abdomen_replicate_3_R1.fastq --reverse SRR7759450_bulk_abdomen_replicate_3_R2.fastq --fastqout SRR7759450_bulk_abdomen_replicate_3_merged.fastq
+
+vsearch --fastq_mergepairs SRR7759473_bulk_leg_replicate_1_R1.fastq --reverse SRR7759473_bulk_leg_replicate_1_R2.fastq --fastqout SRR7759473_bulk_leg_replicate_1_merged.fastq
+
+vsearch --fastq_mergepairs SRR7759476_bulk_leg_replicate_2_R1.fastq --reverse SRR7759476_bulk_leg_replicate_2_R2.fastq --fastqout SRR7759476_bulk_leg_replicate_2_merged.fastq
+
+vsearch --fastq_mergepairs SRR7759475_bulk_leg_replicate_3_R1.fastq --reverse SRR7759475_bulk_leg_replicate_3_R2.fastq --fastqout SRR7759475_bulk_leg_replicate_3_merged.fastq
+
+vsearch --fastq_mergepairs SRR7759446_composite_leg_replicate_1_R1.fastq --reverse SRR7759446_composite_leg_replicate_1_R2.fastq --fastqout SRR7759446_composite_leg_replicate_1_merged.fastq
+
+vsearch --fastq_mergepairs SRR7759443_composite_leg_replicate_2_R1.fastq --reverse SRR7759443_composite_leg_replicate_2_R2.fastq --fastqout SRR7759443_composite_leg_replicate_2_merged.fastq
+
+vsearch --fastq_mergepairs SRR7759444_composite_leg_replicate_3_R1.fastq --reverse SRR7759444_composite_leg_replicate_3_R2.fastq --fastqout SRR7759444_composite_leg_replicate_3_merged.fastq
+```
+
+For ease, move files to a new directory.
+
+```{code-block} bash
+mkdir merged
+cp *merged.fastq merged/
+cd merged/
+```
+
+Thus far, reads still contain the primer sequences. They can now be removed using [cutadapt *v* 4.4](https://cutadapt.readthedocs.io/en/stable/).
+
+```{code-block} bash
+mkdir demux
+cutadapt SRR7759458_bulk_abdomen_replicate_1_merged.fastq -g 'GCTTTCCCACGAATAAATAATA...TGATTTTTTGGWCAYCCWGAAGTTTA' -o demux/SRR7759458_bulk_abdomen_replicate_1_merged_demux.fastq --discard-untrimmed --no-indels -e 2 --cores=0
+
+cutadapt SRR7759449_bulk_abdomen_replicate_2_merged.fastq -g 'GCTTTCCCACGAATAAATAATA...TGATTTTTTGGWCAYCCWGAAGTTTA' -o demux/SRR7759449_bulk_abdomen_replicate_2_merged_demux.fastq --discard-untrimmed --no-indels -e 2 --cores=0
+
+cutadapt SRR7759450_bulk_abdomen_replicate_3_merged.fastq -g 'GCTTTCCCACGAATAAATAATA...TGATTTTTTGGWCAYCCWGAAGTTTA' -o demux/SRR7759450_bulk_abdomen_replicate_3_merged_demux.fastq --discard-untrimmed --no-indels -e 2 --cores=0
+
+cutadapt SRR7759473_bulk_leg_replicate_1_merged.fastq -g 'GCTTTCCCACGAATAAATAATA...TGATTTTTTGGWCAYCCWGAAGTTTA' -o demux/SRR7759473_bulk_leg_replicate_1_merged_demux.fastq --discard-untrimmed --no-indels -e 2 --cores=0
+
+cutadapt SRR7759476_bulk_leg_replicate_2_merged.fastq -g 'GCTTTCCCACGAATAAATAATA...TGATTTTTTGGWCAYCCWGAAGTTTA' -o demux/SRR7759476_bulk_leg_replicate_2_merged_demux.fastq --discard-untrimmed --no-indels -e 2 --cores=0
+
+cutadapt SRR7759475_bulk_leg_replicate_3_merged.fastq -g 'GCTTTCCCACGAATAAATAATA...TGATTTTTTGGWCAYCCWGAAGTTTA' -o demux/SRR7759475_bulk_leg_replicate_3_merged_demux.fastq --discard-untrimmed --no-indels -e 2 --cores=0
+
+cutadapt SRR7759446_composite_leg_replicate_1_merged.fastq -g 'GCTTTCCCACGAATAAATAATA...TGATTTTTTGGWCAYCCWGAAGTTTA' -o demux/SRR7759446_composite_leg_replicate_1_merged_demux.fastq --discard-untrimmed --no-indels -e 2 --cores=0
+
+cutadapt SRR7759443_composite_leg_replicate_2_merged.fastq -g 'GCTTTCCCACGAATAAATAATA...TGATTTTTTGGWCAYCCWGAAGTTTA' -o demux/SRR7759443_composite_leg_replicate_2_merged_demux.fastq --discard-untrimmed --no-indels -e 2 --cores=0
+
+cutadapt SRR7759444_composite_leg_replicate_3_merged.fastq -g 'GCTTTCCCACGAATAAATAATA...TGATTTTTTGGWCAYCCWGAAGTTTA' -o demux/SRR7759444_composite_leg_replicate_3_merged_demux.fastq --discard-untrimmed --no-indels -e 2 --cores=0
+```
+
+Once the primer sequences are removed, we will further clean the data based on minimum length, maximum length, and number of ambiguous basecalls.
+
+```{code-block} bash
+cd demux/
+mkdir qual
+for fq in *.fastq
+do
+echo "\n\n\nAnalysing: ${fq}"
+fasta=${fq/.fastq/.fasta} 
+vsearch --fastq_filter ${fq} --fastq_maxee 1.0 --fastq_minlen 400 --fastq_maxlen 415 --fastq_maxns 0 --fastqout qual/${fq} --fastaout qual/${fasta} --relabel ${fq/.fastq/}.
+done
+```
+
+To save computational resources, dereplicate reads.
+
+```{code-block} bash
+cd qual/
+mkdir derep
+cat *.fasta > derep/combined.fasta
+cat *.fastq > derep/combined.fastq
+cd derep/
+vsearch --derep_fulllength combined.fasta --sizeout --relabel uniq. --output uniques.fasta
+```
+
+From the dereplicated fasta file, find all ASVs.
+
+```{code-block} bash
+vsearch --cluster_unoise uniques.fasta --sizein --sizeout --relabel denoised. --centroids denoised.fasta
+```
+
+VSEARCH does not automatically remove chimeric sequences during denoising, so let's remove those sequences now.
+
+```{code-block} bash
+vsearch --uchime3_denovo denoised.fasta --sizein --nonchimeras asv.fasta --relabel asv.
+```
+
+Now that we have the final list of ASVs, we can generate the ASV table.
+
+```{code-block} bash
+vsearch --usearch_global combined.fasta --db asv.fasta --strand plus --id 0.97 --otutabout asv_table.txt
+```
+
+### 2.3 Taxonomic assignment
 
 ## 3. Supplement 3: air eDNA data analysis
 
