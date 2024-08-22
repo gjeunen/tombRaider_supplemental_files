@@ -761,6 +761,59 @@ write.table(asv_tab, "./SequenceData/7-final/ASV.txt", sep="\t", quote=F, col.na
 
 ### 3.3 Taxonomy assignment
 
+To assign a taxonomic ID to each ASV, we will generate highly curated reference databases for each primer set using CRABS *v* 0.1.8. First, download the 16S and 12S reference sequences from NCBI.
+
+```{code-block} bash
+crabs db_download -s ncbi -db nucleotide -q '12S[All Fields] AND (animals[filter])' -o ncbi_12S.fasta -e gjeunen@gmail.com
+crabs db_download -s ncbi -db nucleotide -q '16S[All Fields] AND (animals[filter])' -o ncbi_16S.fasta -e gjeunen@gmail.com
+```
+
+Additionally, the NCBI taxonomy information needs to be downloaded to complete the reference database creation with CRABS.
+
+```{code-block} bash
+crabs db_download -s taxonomy
+```
+
+Second, extract amplicons from the downloaded reference sequences using an *in silico* PCR analysis.
+
+```{code-block} bash
+crabs insilico_pcr -i ncbi_12S.fasta -o ncbi_12S_insilico.fasta -f TTAGATACCCCACTATGC -r TAGAACAGGCTCCTCTAG
+crabs insilico_pcr -i ncbi_16S.fasta -o ncbi_16S_insilico.fasta -f CGGTTGGGGTGACCTCGGA -r GCTGTTATCCCTAGGGTAACT
+```
+
+Third, assign a taxonomic lineage to each sequence.
+
+```{code-block} bash
+crabs assign_tax -i ncbi_12S_insilico.fasta -o ncbi_12S_insilico_tax.tsv -a nucl_gb.accession2taxid -t nodes.dmp -n names.dmp -w yes
+crabs assign_tax -i ncbi_16S_insilico.fasta -o ncbi_16S_insilico_tax.tsv -a nucl_gb.accession2taxid -t nodes.dmp -n names.dmp -w yes
+```
+
+Fourth, dereplicate the reference database to reduce the file size and remove reduntant sequences.
+
+```{code-block} bash
+crabs dereplicate -i ncbi_12S_insilico_tax.tsv -o ncbi_12S_insilico_tax_derep.tsv -m uniq_species
+crabs dereplicate -i ncbi_16S_insilico_tax.tsv -o ncbi_16S_insilico_tax_derep.tsv -m uniq_species
+```
+
+Fifth, use various filtering parameters to retain only high quality references in the local database.
+
+```{code-block} bash
+crabs seq_cleanup -i ncbi_12S_insilico_tax_derep.tsv -o ncbi_12S_insilico_tax_derep_clean.tsv -e yes -s yes -n 0
+crabs seq_cleanup -i ncbi_16S_insilico_tax_derep.tsv -o ncbi_16S_insilico_tax_derep_clean.tsv -e yes -s yes -n 0
+```
+
+### 3.4 *tombRaider*
+
+Once the three input files ("asv_table.txt", "asvs.fasta", and "blast_taxonomy.txt") are generated, we will execute *tombRaider* to identify and remove artefacts from both data sets.
+
+```{code-block} bash
+tombRaider --method 'taxon-dependent co-occurrence' --occurrence-type presence-absence --count 1 --sort 'total read count' --frequency-input riaz_ASVs_table.txt --frequency-output riaz_ASVs_table_tombRaider.txt --sequence-input riaz_ASV.fasta --sequence-output riaz_ASV_tombRaider.fasta --blast-input riaz_ASV.fasta.nt.blastn --blast-output riaz_ASV_tombRaider.fasta.nt.blastn --condensed-log tombRaiderCondensedLogRiaz.txt --detailed-log tombRaiderDetailedLogRiaz.txt --similarity 90
+
+tombRaider --method 'taxon-dependent co-occurrence' --occurrence-type presence-absence --count 1 --sort 'total read count' --frequency-input 16sm_ASVs_table.txt --frequency-output 16sm_ASVs_table_tombRaider.txt --sequence-input 16sm_ASV.fasta --sequence-output 16sm_ASV_tombRaider.fasta --blast-input 16sm_ASV.fasta.nt.blastn --blast-output 16sm_ASV_tombRaider.fasta.nt.blastn --condensed-log tombRaiderCondensedLog.txt --detailed-log tombRaiderDetailedLog.txt --similarity 90
+```
+
+### 3.5 Statistical analysis
+
 ## 4. Supplement 4: salmon haplotype data analysis
 
 ### 4.1 Starting files
