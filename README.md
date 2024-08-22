@@ -637,6 +637,130 @@ The raw sequencing data file names start with KRB-W3XGQ followed by the primer n
 
 ### 3.2 Bioinformatic analysis
 
+For the bioinformatic analysis, we will follow the DADA2 pipeline. However, beforehand, the data need to be demultiplexed using cutadapt, as this functionality is not available within DADA2.
+
+First, we merge the forward and reverse reads using VSEARCH. We have to do this once for every R1 and R2 combo.
+
+```{code-block} bash
+vsearch --fastq_mergepairs initialDownload/KRB-W3XGQ-16Smam1DNAirZoo_S5_L001_R1_001.fastq.gz --reverse initialDownload/KRB-W3XGQ-16Smam1DNAirZoo_S5_L001_R2_001.fastq.gz --fastqout 16Smam1.fastq --fastq_allowmergestagger
+vsearch --fastq_mergepairs initialDownload/KRB-W3XGQ-16Smam2DNAirZoo_S6_L001_R1_001.fastq.gz --reverse initialDownload/KRB-W3XGQ-16Smam2DNAirZoo_S6_L001_R2_001.fastq.gz --fastqout 16Smam2.fastq --fastq_allowmergestagger
+vsearch --fastq_mergepairs initialDownload/KRB-W3XGQ-16Smam3DNAirZoo_S7_L001_R1_001.fastq.gz --reverse initialDownload/KRB-W3XGQ-16Smam3DNAirZoo_S7_L001_R2_001.fastq.gz --fastqout 16Smam3.fastq --fastq_allowmergestagger
+vsearch --fastq_mergepairs initialDownload/KRB-W3XGQ-16Smam4DNAirZoo_S8_L001_R1_001.fastq.gz --reverse initialDownload/KRB-W3XGQ-16Smam4DNAirZoo_S8_L001_R2_001.fastq.gz --fastqout Riaz4.fastq --fastq_allowmergestagger
+vsearch --fastq_mergepairs initialDownload/KRB-W3XGQ-Riaz1DNAirZoo_S1_L001_R1_001.fastq.gz --reverse initialDownload/KRB-W3XGQ-Riaz1DNAirZoo_S1_L001_R2_001.fastq.gz --fastqout Riaz1.fastq --fastq_allowmergestagger
+vsearch --fastq_mergepairs initialDownload/KRB-W3XGQ-Riaz2DNAirZoo_S2_L001_R1_001.fastq.gz --reverse initialDownload/KRB-W3XGQ-Riaz2DNAirZoo_S2_L001_R2_001.fastq.gz --fastqout Riaz2.fastq --fastq_allowmergestagger
+vsearch --fastq_mergepairs initialDownload/KRB-W3XGQ-Riaz3DNAirZoo_S3_L001_R1_001.fastq.gz --reverse initialDownload/KRB-W3XGQ-Riaz3DNAirZoo_S3_L001_R2_001.fastq.gz --fastqout Riaz3.fastq --fastq_allowmergestagger
+vsearch --fastq_mergepairs initialDownload/KRB-W3XGQ-Riaz4DNAirZoo_S4_L001_R1_001.fastq.gz --reverse initialDownload/KRB-W3XGQ-Riaz4DNAirZoo_S4_L001_R2_001.fastq.gz --fastqout 16Smam4.fastq --fastq_allowmergestagger
+```
+
+Next, we demultiplex the libraries using cutadapt.
+
+```{code-block} bash
+mkdir -p demux/mam16S
+cutadapt 16Smam1.fastq -g file:initialDownload/barcodes_16Smam1.fasta -o demux/mam16S/{name}.fastq --discard-untrimmed --no-indels -e 2 --cores=0 --revcomp
+cutadapt 16Smam2.fastq -g file:initialDownload/barcodes_16Smam2.fasta -o demux/mam16S/{name}.fastq --discard-untrimmed --no-indels -e 2 --cores=0 --revcomp
+cutadapt 16Smam3.fastq -g file:initialDownload/barcodes_16Smam3.fasta -o demux/mam16S/{name}.fastq --discard-untrimmed --no-indels -e 2 --cores=0 --revcomp
+cutadapt 16Smam4.fastq -g file:initialDownload/barcodes_16Smam4.fasta -o demux/mam16S/{name}.fastq --discard-untrimmed --no-indels -e 2 --cores=0 --revcomp
+
+mkdir -p demux/riaz
+cutadapt Riaz1.fastq -g file:initialDownload/barcodes_Riaz1.fasta -o demux/riaz/{name}.fastq --discard-untrimmed --no-indels -e 2 --cores=0 --revcomp
+cutadapt Riaz2.fastq -g file:initialDownload/barcodes_Riaz2.fasta -o demux/riaz/{name}.fastq --discard-untrimmed --no-indels -e 2 --cores=0 --revcomp
+cutadapt Riaz3.fastq -g file:initialDownload/barcodes_Riaz3.fasta -o demux/riaz/{name}.fastq --discard-untrimmed --no-indels -e 2 --cores=0 --revcomp
+cutadapt Riaz4.fastq -g file:initialDownload/barcodes_Riaz4.fasta -o demux/riaz/{name}.fastq --discard-untrimmed --no-indels -e 2 --cores=0 --revcomp
+```
+
+We can now import the fastq files into R and run the following DADA2 pipeline to generate the ASV fasta file and ASV table.
+
+```{code-block} R
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install("dada2", version = "3.17")
+library(dada2)
+getwd()
+path <- "./SequenceData/3-demux"
+list.files(path)
+fnFs <- sort(list.files(path, pattern="_R1_001.fastq", full.names = TRUE))
+fnRs <- sort(list.files(path, pattern="_R2_001.fastq", full.names = TRUE))
+sample.names <- sapply(strsplit(basename(fnFs), ".fastq"), `[`, 1)
+sample.namesR <- sapply(strsplit(basename(fnRs), ".fastq"), `[`, 1)
+plotQualityProfile(fnFs[1:2])
+plotQualityProfile(fnRs[1:2])
+
+# Filter and trimming of files
+# NOTE: You can change the filtering parameters if you believe it's too harsh on your data (e.g maxEE, truncQ, etc) and can also add more options based on your need (e.g minLen=z, truncLen=c(x,y) )
+filtFs <- file.path("4-filter", paste0(sample.names, "_filt.fastq"))
+filtRs <- file.path("4-filter", paste0(sample.namesR, "_filt.fastq"))
+names(filtFs) <- sample.names
+names(filtRs) <- sample.namesR
+out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE, compress=FALSE, multithread=16)
+
+# Repeat on filtered folder, in case some data didn't pass the filtering
+# NOTE: Keep it same as the above thresholds
+path <- "4-filter"
+list.files(path)
+fnFs <- sort(list.files(path, pattern="_R1_001_filt.fastq", full.names = TRUE))
+fnRs <- sort(list.files(path, pattern="_R2_001_filt.fastq", full.names = TRUE))
+sample.names <- sapply(strsplit(basename(fnFs), ".fastq"), `[`, 1)
+sample.namesR <- sapply(strsplit(basename(fnRs), ".fastq"), `[`, 1)
+filtFs <- file.path("02_b_finalFiltered", paste0(sample.names, "_checked.fastq"))
+filtRs <- file.path("02_b_finalFiltered", paste0(sample.namesR, "_checked.fastq"))
+names(filtFs) <- sample.names
+names(filtRs) <- sample.namesR
+out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, maxN=0, maxEE=c(2,2), truncQ=2, rm.phix=TRUE, compress=FALSE, multithread=16) 
+
+# Learn and plot the error rate
+errF <- learnErrors(filtFs, multithread=16)
+errR <- learnErrors(filtRs, multithread=16)
+plotErrors(errF, nominalQ=TRUE)
+plotErrors(errR, nominalQ=TRUE) 
+
+# Dereplication
+derepForward <- derepFastq(filtFs, verbose=TRUE)
+names(derepForward) <- sample.names
+derepReverse <- derepFastq(filtRs, verbose=TRUE)
+names(derepReverse) <- sample.namesR
+
+# DADA sample inference 
+dadaFs <- dada(derepForward, err=errF, multithread=16, pool=TRUE)
+dadaRs <- dada(derepReverse, err=errR, multithread=16, pool=TRUE)
+
+# Merging forward and reverse reads
+merged_reads <- mergePairs(dadaFs, derepForward, dadaRs, derepReverse, verbose=TRUE)
+
+# Construct sequence table
+seqtab <- makeSequenceTable(merged_reads)
+dim(seqtab)
+
+# Remove Chimeras and produce a track file
+seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=16, verbose=TRUE)
+dim(seqtab.nochim)
+sum(seqtab.nochim)/sum(seqtab)
+
+# Overview of counts throughout
+getN <- function(x) sum(getUniques(x))
+track <- cbind(out, sapply(dadaFs, getN), sapply(dadaRs, getN), sapply(merged_reads, getN), rowSums(seqtab.nochim), round(rowSums(seqtab.nochim)/out[,1]*100, 1))
+colnames(track) <- c("filtered", "filtered_checked", "denoisedF", "denoisedR", "merged", "nonchim", "% reads retained")
+rownames(track) <- sub("_R1_001$", "", rownames(seqtab.nochim))
+write.csv(track, file = "trackprocess.csv", row.names=TRUE)
+
+# Changing sequence headers to ASV_...
+asv_seqs <- colnames(seqtab.nochim)
+asv_headers <- vector(dim(seqtab.nochim)[2], mode="character")
+for (i in 1:dim(seqtab.nochim)[2]) {
+  asv_headers[i] <- paste(">ASV", i, sep="_")
+}
+
+# Creating ASV.fasta sequence file
+asv_fasta <- c(rbind(asv_headers, asv_seqs))
+write(asv_fasta, file = "./SequenceData/7-final/ASV.fasta")
+
+# Creating final ASV table
+asv_tab <- t(seqtab.nochim)
+row.names(asv_tab) <- sub(">", "", asv_headers)
+write.table(asv_tab, "./SequenceData/7-final/ASV.txt", sep="\t", quote=F, col.names=NA)
+```
+
+### 3.3 Taxonomy assignment
+
 ## 4. Supplement 4: salmon haplotype data analysis
 
 ### 4.1 Starting files
