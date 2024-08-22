@@ -158,4 +158,77 @@ The *tombRaider* log file can be found in the supplemental file named "Supplemen
 
 ### 4.5 Phylogenetic tree
 
+To assess the efficiency of *tombRaider* to identify true haplotypes, we will generate a phylogenetic tree that includes all ASVs, as well as all reference sequences for our three salmonid species. By visualising the tree for which ASVs were retained and removed, we can investigate the accuracy of *tombRaider*. To start, we need to extract all reference barcodes from the reference database that are assigned to either of the three salmonid species and combine those reference barcodes with our ASVs in a single file. We can do this using the following python script.
+
+```{code-block} python
+seq_list = []
+species = ['Oncorhynchus clarkii', 'Oncorhynchus kisutch', 'Oncorhynchus tshawytscha']
+with open('asvs.fasta', 'r') as infile:
+    for line in infile:
+        seq_list.append(line)
+with open('ncbi_ND2_insilico_tax_derep_clean.tsv', 'r') as reffile:
+    for line in reffile:
+        for item in species:
+            if item in line:
+                seqID = line.split('\t')[0] + '_' + line.split('\t')[-2] + '\n'
+                sequence = line.split('\t')[-1]
+                seq_list.append(seqID)
+                seq_list.append(sequence)
+with open('O_all_ref_seqs_plus_ASVs_renamed_headers_v2.fasta', 'w') as outfile:
+    for item in seq_list:
+        outfile.write(item)
+```
+
+The Bayesian phylogenetic tree was generated using BEAST *v* 2.7.6 [(Bouckaert et al., 2019)](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1006650) after aligning the sequences using the `AlignSeqs` function of the DECIPHER *v* 2.28.0 R package [(Wright, 2020)](https://rnajournal.cshlp.org/content/26/5/531.short).
+
+```{code-block} R
+## load libraries
+library(DECIPHER)
+library(dada2)
+library(Biostrings)
+library(ape)
+
+## read fasta, align, and write output as nexus
+sequenceTable <- readDNAStringSet('O_all_ref_seqs_plus_ASVs_renamed_headers_v2.fasta')
+seqs <- getSequences(sequenceTable)
+alignment <- AlignSeqs(DNAStringSet(seqs), anchor = NA)
+write.nexus.data(alignment, 'O_all_ref_seqs_plus_ASVs_aligned_v2.nex')
+```
+
+Phylogenetic tree construction was performed with a Markov chain Monte Carlo (MCMC) chain length of 108 iterations, sampling trees every 1000. Convergence of the MCMC chains and effective sample size was checked using TRACER v 1.7.2 [(Rambaut et al., 2018)](https://academic.oup.com/sysbio/article/67/5/901/4989127). The maximum credibility tree from the posterior sample of phylogenetic time-trees with a burn-in percentage of 85 % was identified through TreeAnnotator v 2.7.6 [(Bouckaert et al., 2019)](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1006650) and used for subsequent analyses. The final tree was read into R and visualised using the ggtree *v* 3.10.0 R package.
+
+```{code-block} R
+# load libraries
+required.libraries <- c("dada2", "DECIPHER", "purrr", "ape", "picante", 
+                        "pez", "phytools",
+                        "vegan", "adephylo", 
+                        "phylobase", "geiger", 
+                        "mvMORPH", "OUwie", 
+                        "hisse", "BAMMtools",
+                        "phylosignal", "Biostrings",
+                        "devtools","ggplot2", 
+                        "kableExtra", "betapart", "gridExtra",
+                        "reshape2", "ggtree", "car", "egg", "tidyverse", "dplyr",
+                        "hrbrthemes", "readxl", "ggrepel", "pracma", "scales", "ggpubr", "lsmeans", "multcomp",
+                        "phyloseq", "gplots", "tidytree", "ggridges")
+lapply(required.libraries, require, character.only = TRUE)
+
+# First, read the data into R.
+sequenceTable <- readDNAStringSet('O_all_ref_seqs_plus_ASVs_renamed_headers_v2.fasta')
+phyloTree <- read.nexus('O_all_ref_seqs_plus_ASVs_aligned_v2-tree.tree')
+
+# Second, plot tree and figure out the node numbers for manipulation
+ggtree(phyloTree) + geom_text(aes(label = node)) + geom_tiplab()
+
+# Third, collapse nodes I don't further need (node 148 for all clarkii ref seqs without ASVs; node 214 for outgroup)
+rawTree <- ggtree(phyloTree) + geom_text(aes(label = node)) + geom_tiplab()
+collapsedTree <- rawTree %>% collapse(node = 148) +
+  geom_point2(aes(subset=(node==148)), shape = 21, size = 5, fill = 'green')
+collapsedTree <- collapsedTree %>% collapse(node = 214) +
+  geom_point2(aes(subset=(node==214)), shape = 21, size = 5, fill = 'red')
+collapsedTree
+```
+
+The final tree was annotated manually and combined with the haplotype networks (see **4.6 Haplotype networks**) to generate Figure 5 in the manuscript.
+
 ### 4.6 Haplotype networks
