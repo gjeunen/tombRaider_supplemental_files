@@ -232,3 +232,88 @@ collapsedTree
 The final tree was annotated manually and combined with the haplotype networks (see **4.6 Haplotype networks**) to generate Figure 5 in the manuscript.
 
 ### 4.6 Haplotype networks
+
+To generate the haplotype networks for each salmonid species independently, we will generate fasta files from the initial csv supplementary files using the python script below.
+
+```{code-block} python
+#!/usr/bin/env Python3
+
+fasta_dict = {}
+with open('clarkii_ND2_combine_chimera_removed2.denoise_summary.csv', 'r') as clarkii_in:
+    for line in clarkii_in:
+        if line.startswith('id'):
+            continue
+        else:
+            seq_id = '>clarkii_' + line.split(',')[0]
+            sequence = line.split(',')[-1].rstrip('\n')
+            fasta_dict[seq_id] = sequence
+with open('clarkii_asvs.fasta', 'w') as outfile:
+    for k, v in fasta_dict.items():
+        asv_out.write(k + '\n' + v + '\n')
+
+fasta_dict = {}
+with open('kisutch_ND2_combine.denoise_summary.csv', 'r') as kisutch_in:
+    for line in kisutch_in:
+        line = line.replace('"', '')
+        if 'id' in line.split(',')[0]:
+            continue
+        else:
+            seq_id = '>kisutch_' + line.split(',')[0]
+            sequence = line.split(',')[-1].rstrip('\n')
+            fasta_dict[seq_id] = sequence
+with open('kisutch_asvs.fasta', 'w') as outfile:
+    for k, v in fasta_dict.items():
+        asv_out.write(k + '\n' + v + '\n')
+
+fasta_dict = {}
+with open('tshawytscha_ND2_combine.denoise_summary.csv', 'r') as tshawytscha_in:
+    for line in tshawytscha_in:
+        line = line.replace('"', '')
+        if 'id' in line.split(',')[0]:
+            continue
+        else:
+            seq_id = '>tshawytscha_' + line.split(',')[0]
+            sequence = line.split(',')[-1].rstrip('\n')
+            fasta_dict[seq_id] = sequence
+with open('tshawytscha_asvs.fasta', 'w') as outfile:
+    for k, v in fasta_dict.items():
+        asv_out.write(k + '\n' + v + '\n')
+```
+
+The separate ASV files can be read into R to create individual haplotype networks using the pegas *v* 1.3 and adegenet *v* 2.1.10 R packages.
+
+```{code-block} R
+library(pegas)
+library(adegenet)
+dna <- fasta2DNAbin('kisutch_asvs.fasta')
+h <- haplotype(dna)
+d <- dist.dna(h, 'N')
+nt <- rmst(d, quiet = TRUE)
+x <- haploNet(h, d)
+plot(x, threshold = 0, size = 2, scale.ratio = 2)
+pdf("haploNet_plot_kisutch.pdf")
+plot(x, threshold = 0, size = 2, scale.ratio = 2)
+dev.off()
+
+dna <- fasta2DNAbin('clarkii_asvs.fasta')
+h <- haplotype(dna)
+d <- dist.dna(h, 'N')
+nt <- rmst(d, quiet = TRUE)
+x <- haploNet(h, d)
+plot(x, threshold = 0, size = 2)
+pdf("haploNet_plot_clarkii.pdf")
+plot(x, threshold = 0, size = 2, scale.ratio = 2)
+dev.off()
+
+dna <- fasta2DNAbin('tshawytscha_asvs.fasta')
+h <- haplotype(dna)
+d <- dist.dna(h, 'N')
+nt <- rmst(d, quiet = TRUE)
+x <- haploNet(h, d)
+plot(x, threshold = 0)
+pdf("haploNet_plot_tshawytscha.pdf")
+plot(x, threshold = 0, size = 2, scale.ratio = 2)
+dev.off()
+```
+
+Individual haplotype networks were manually annotated and combined with the phylogenetic tree to generate Figure 5 in the manuscript.
